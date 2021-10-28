@@ -14,7 +14,7 @@ python3 -m server -g config.json
 ```sh
 python3 -m server -r config.json
 ```
-Then, you can send request to this server via client.
+Then, you can send request to the server via client.
 * Example of getting ip6 address of google.com via udp protocol
 
 ```sh
