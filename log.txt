@@ -194,3 +194,199 @@ AttributeError: 'list' object has no attribute '__dict__'
 [2021-10-28 09:15:19,480] - INFO - insma.urfu.com - None
 [2021-10-28 09:15:26,930] - INFO - insma.urfu.com - 185.53.177.51
 [2021-10-28 09:15:29,569] - INFO - insma.urfu.com - 185.53.177.51
+[2021-10-28 09:36:56,657] - INFO - google.com - 2a00:1450:4010:c0e::8b
+[2021-10-28 09:36:59,983] - INFO - google.com - 74.125.131.139
+[2021-10-28 09:37:02,170] - INFO - google.com - 2a00:1450:4010:c0e::8b
+[2021-10-28 09:37:02,825] - INFO - google.com - 2a00:1450:4010:c0e::8b
+[2021-10-28 09:37:03,672] - INFO - google.com - 2a00:1450:4010:c0e::8b
+[2021-10-28 09:37:09,875] - INFO - google.com - 74.125.131.139
+[2021-10-28 09:37:14,980] - INFO - google.com - 74.125.131.139
+[2021-10-28 09:37:23,580] - INFO - google.com - 74.125.131.139
+[2021-10-28 09:38:36,197] - ERROR - 'latin-1' codec can't encode characters in position 0-5: ordinal not in range(256)
+Traceback (most recent call last):
+  File "/home/artem/PycharmProjects/dns/server/server.py", line 60, in handle_client
+    query = get_dns_request(domain, udp, is_ip6)
+  File "/home/artem/PycharmProjects/dns/server/server.py", line 100, in get_dns_request
+    message = str(DnsMessage(43690, flags, q, []))
+  File "/home/artem/PycharmProjects/dns/entities/dns_message.py", line 25, in __str__
+    message += str(self.question)
+  File "/home/artem/PycharmProjects/dns/entities/question.py", line 26, in __str__
+    addr_part = binascii.hexlify(part.encode('iso8859-1'))
+UnicodeEncodeError: 'latin-1' codec can't encode characters in position 0-5: ordinal not in range(256)
+[2021-10-28 09:39:02,020] - ERROR - 'latin-1' codec can't encode characters in position 0-5: ordinal not in range(256)
+Traceback (most recent call last):
+  File "/home/artem/PycharmProjects/dns/server/server.py", line 60, in handle_client
+    query = get_dns_request(domain, udp, is_ip6)
+  File "/home/artem/PycharmProjects/dns/server/server.py", line 100, in get_dns_request
+    message = str(DnsMessage(43690, flags, q, []))
+  File "/home/artem/PycharmProjects/dns/entities/dns_message.py", line 25, in __str__
+    message += str(self.question)
+  File "/home/artem/PycharmProjects/dns/entities/question.py", line 26, in __str__
+    addr_part = binascii.hexlify(part.encode('iso8859-1'))
+UnicodeEncodeError: 'latin-1' codec can't encode characters in position 0-5: ordinal not in range(256)
+[2021-10-28 09:40:19,382] - INFO - insma.urfu.ru - 93.88.177.154
+[2021-10-28 09:40:21,239] - INFO - insma.urfu.ru - 93.88.177.154
+[2021-10-28 09:40:22,335] - INFO - insma.urfu.ru - 93.88.177.154
+[2021-10-28 09:40:26,480] - INFO - insma.urfu.ru - None
+[2021-10-28 09:40:29,329] - INFO - insma.urfu.ru - 93.88.177.154
+[2021-10-28 09:40:41,020] - INFO - insma.urfu.ru - 93.88.177.154
+[2021-10-28 09:40:43,526] - INFO - insma.urfu.ru - 93.88.177.154
+[2021-10-28 09:40:57,602] - INFO - insma.urfu.ru - 93.88.177.154
+[2021-10-28 09:43:20,671] - INFO - insma.urfu.com - 185.53.177.51
+[2021-10-28 09:43:26,128] - ERROR - invalid literal for int() with base 16: ''
+Traceback (most recent call last):
+  File "/home/artem/PycharmProjects/dns/server/server.py", line 60, in handle_client
+    query = get_dns_request(domain, udp, is_ip6)
+  File "/home/artem/PycharmProjects/dns/server/server.py", line 106, in get_dns_request
+    decoded_message = DnsMessage.parse(response)
+  File "/home/artem/PycharmProjects/dns/entities/dns_message.py", line 69, in parse
+    length = int(
+ValueError: invalid literal for int() with base 16: ''
+[2021-10-28 09:44:06,968] - INFO - urfu.ru - 93.88.179.200
+[2021-10-28 09:44:18,963] - INFO - vk.com - 87.240.190.67
+[2021-10-28 09:44:22,651] - INFO - vk.ru - 195.208.1.105
+[2021-10-28 09:44:24,787] - INFO - vk.ru - 195.208.1.105
+[2021-10-28 09:44:25,463] - INFO - vk.ru - 195.208.1.105
+[2021-10-28 09:44:26,560] - INFO - vk.ru - 195.208.1.105
+[2021-10-28 09:44:30,177] - INFO - vk.net - None
+[2021-10-28 12:59:13,262] - INFO - google.com - 209.85.233.102
+[2021-10-28 12:59:23,641] - INFO - urfu.ru - 93.88.179.200
+[2021-10-28 12:59:28,983] - ERROR - invalid literal for int() with base 16: ''
+Traceback (most recent call last):
+  File "/home/artem/PycharmProjects/dns/server/server.py", line 60, in handle_client
+    query = get_dns_request(domain, udp, is_ip6)
+  File "/home/artem/PycharmProjects/dns/server/server.py", line 106, in get_dns_request
+    decoded_message = DnsMessage.parse(response)
+  File "/home/artem/PycharmProjects/dns/entities/dns_message.py", line 69, in parse
+    length = int(
+ValueError: invalid literal for int() with base 16: ''
+[2021-10-28 13:00:06,557] - INFO - insma.urfu.ru - 93.88.177.154
+[2021-10-28 13:00:10,987] - INFO - insma.urfu.com - 185.53.177.51
+[2021-10-28 13:15:50,815] - INFO - urfu.net - None
+[2021-10-28 13:44:13,009] - INFO - insma.urfu.com - 185.53.177.51
+[2021-10-28 13:44:19,283] - ERROR - invalid literal for int() with base 16: ''
+Traceback (most recent call last):
+  File "/home/artem/PycharmProjects/dns/server/server.py", line 60, in handle_client
+    query = get_dns_request(domain, udp, is_ip6)
+  File "/home/artem/PycharmProjects/dns/server/server.py", line 106, in get_dns_request
+    decoded_message = DnsMessage.parse(response)
+  File "/home/artem/PycharmProjects/dns/entities/dns_message.py", line 69, in parse
+    length = int(
+ValueError: invalid literal for int() with base 16: ''
+[2021-10-28 13:44:25,782] - INFO - insma.urfu.com - 185.53.177.51
+[2021-10-28 13:44:27,791] - ERROR - invalid literal for int() with base 16: ''
+Traceback (most recent call last):
+  File "/home/artem/PycharmProjects/dns/server/server.py", line 60, in handle_client
+    query = get_dns_request(domain, udp, is_ip6)
+  File "/home/artem/PycharmProjects/dns/server/server.py", line 106, in get_dns_request
+    decoded_message = DnsMessage.parse(response)
+  File "/home/artem/PycharmProjects/dns/entities/dns_message.py", line 69, in parse
+    length = int(
+ValueError: invalid literal for int() with base 16: ''
+[2021-10-28 13:44:29,048] - INFO - insma.urfu.com - 185.53.177.51
+[2021-10-28 13:44:33,076] - ERROR - invalid literal for int() with base 16: ''
+Traceback (most recent call last):
+  File "/home/artem/PycharmProjects/dns/server/server.py", line 60, in handle_client
+    query = get_dns_request(domain, udp, is_ip6)
+  File "/home/artem/PycharmProjects/dns/server/server.py", line 106, in get_dns_request
+    decoded_message = DnsMessage.parse(response)
+  File "/home/artem/PycharmProjects/dns/entities/dns_message.py", line 69, in parse
+    length = int(
+ValueError: invalid literal for int() with base 16: ''
+[2021-10-28 13:46:03,414] - ERROR - invalid literal for int() with base 16: ''
+Traceback (most recent call last):
+  File "/home/artem/PycharmProjects/dns/server/server.py", line 60, in handle_client
+    query = get_dns_request(domain, udp, is_ip6)
+  File "/home/artem/PycharmProjects/dns/server/server.py", line 106, in get_dns_request
+    decoded_message = DnsMessage.parse(response)
+  File "/home/artem/PycharmProjects/dns/entities/dns_message.py", line 70, in parse
+    length = int(message[start + name_len + 16: start + name_len + 20], 16)
+ValueError: invalid literal for int() with base 16: ''
+[2021-10-28 13:47:06,800] - ERROR - invalid literal for int() with base 16: ''
+Traceback (most recent call last):
+  File "/home/artem/PycharmProjects/dns/server/server.py", line 60, in handle_client
+    query = get_dns_request(domain, udp, is_ip6)
+  File "/home/artem/PycharmProjects/dns/server/server.py", line 106, in get_dns_request
+    decoded_message = DnsMessage.parse(response)
+  File "/home/artem/PycharmProjects/dns/entities/dns_message.py", line 70, in parse
+    length = int(message[start + name_len + 16: start + name_len + 20], 16)
+ValueError: invalid literal for int() with base 16: ''
+[2021-10-28 13:48:32,273] - ERROR - invalid literal for int() with base 16: ''
+Traceback (most recent call last):
+  File "/home/artem/PycharmProjects/dns/server/server.py", line 60, in handle_client
+    query = get_dns_request(domain, udp, is_ip6)
+  File "/home/artem/PycharmProjects/dns/server/server.py", line 106, in get_dns_request
+    decoded_message = DnsMessage.parse(response)
+  File "/home/artem/PycharmProjects/dns/entities/dns_message.py", line 70, in parse
+    length = int(message[start + name_len + 16: start + name_len + 20], 16)
+ValueError: invalid literal for int() with base 16: ''
+[2021-10-28 13:52:42,990] - ERROR - invalid literal for int() with base 16: ''
+Traceback (most recent call last):
+  File "/home/artem/PycharmProjects/dns/server/server.py", line 60, in handle_client
+    query = get_dns_request(domain, udp, is_ip6)
+  File "/home/artem/PycharmProjects/dns/server/server.py", line 106, in get_dns_request
+    decoded_message = DnsMessage.parse(response)
+  File "/home/artem/PycharmProjects/dns/entities/dns_message.py", line 70, in parse
+    length = int(message[start + name_len + 16: start + name_len + 20], 16)
+ValueError: invalid literal for int() with base 16: ''
+[2021-10-28 13:57:55,308] - ERROR - invalid literal for int() with base 16: ''
+Traceback (most recent call last):
+  File "/home/artem/PycharmProjects/dns/server/server.py", line 60, in handle_client
+    query = get_dns_request(domain, udp, is_ip6)
+  File "/home/artem/PycharmProjects/dns/server/server.py", line 106, in get_dns_request
+    decoded_message = DnsMessage.parse(response)
+  File "/home/artem/PycharmProjects/dns/entities/dns_message.py", line 70, in parse
+    length = int(message[start + name_len + 16: start + name_len + 20], 16)
+ValueError: invalid literal for int() with base 16: ''
+[2021-10-28 14:00:10,368] - ERROR - invalid literal for int() with base 16: ''
+Traceback (most recent call last):
+  File "/home/artem/PycharmProjects/dns/server/server.py", line 60, in handle_client
+    query = get_dns_request(domain, udp, is_ip6)
+  File "/home/artem/PycharmProjects/dns/server/server.py", line 106, in get_dns_request
+    decoded_message = DnsMessage.parse(response)
+  File "/home/artem/PycharmProjects/dns/entities/dns_message.py", line 69, in parse
+    length = int(message[start + name_len + 16: start + name_len + 20], 16)
+ValueError: invalid literal for int() with base 16: ''
+[2021-10-28 14:00:57,128] - INFO - urfu.com - 185.53.177.51
+[2021-10-28 14:02:02,797] - INFO - urfu.com - 185.53.177.51
+[2021-10-28 14:02:03,800] - INFO - urfu.com - 185.53.177.51
+[2021-10-28 14:02:04,675] - INFO - urfu.com - 185.53.177.51
+[2021-10-28 14:02:07,148] - INFO - urfu.com - 185.53.177.51
+[2021-10-28 14:02:23,672] - INFO - insma.urfu.ru - 93.88.177.154
+[2021-10-28 14:02:25,015] - INFO - insma.urfu.ru - 93.88.177.154
+[2021-10-28 14:02:28,055] - INFO - insma.urfu.com - 185.53.177.51
+[2021-10-28 14:02:42,749] - INFO - insma.urfu.com - 185.53.177.51
+[2021-10-28 14:02:45,706] - INFO - insma.urfu.com - None
+[2021-10-28 14:03:12,390] - INFO - vk.com - 93.186.225.208
+[2021-10-28 14:03:14,171] - INFO - vk.com - 93.186.225.208
+[2021-10-28 14:03:14,829] - INFO - vk.com - 93.186.225.208
+[2021-10-28 14:03:15,640] - INFO - vk.com - 93.186.225.208
+[2021-10-28 14:03:39,210] - INFO - vk.ru - 195.208.1.105
+[2021-10-28 14:03:44,000] - INFO - vk.ru - None
+[2021-10-28 14:03:49,279] - INFO - jfksad.sdfasd - None
+[2021-10-28 14:03:56,787] - INFO - haah.com - 185.53.177.53
+[2021-10-28 14:04:04,573] - INFO - haah.com - None
+[2021-10-28 14:04:28,924] - INFO - qq.com - None
+[2021-10-28 14:04:59,754] - INFO - qq.com - 203.205.254.157
+[2021-10-28 14:05:01,833] - INFO - qq.com - 203.205.254.157
+[2021-10-28 14:05:09,386] - INFO - yandex.com - 77.88.55.80
+[2021-10-28 14:08:17,473] - INFO - ulearn.me - 46.17.203.154
+[2021-10-28 14:08:26,698] - INFO - ulearn.me - None
+[2021-10-28 14:08:47,819] - INFO - ulearn.me - None
+[2021-10-28 14:08:49,764] - INFO - ulearn.me - 46.17.203.154
+[2021-10-28 14:09:16,673] - INFO - youtube.com - 173.194.220.93
+[2021-10-28 14:10:25,780] - INFO - youtube.com - 2a00:1450:4010:c09::be
+[2021-10-28 14:13:43,253] - INFO - youtube.com - 173.194.220.93
+[2021-10-28 14:14:13,874] - INFO - youtube.com - 173.194.220.190
+[2021-10-28 14:18:14,789] - INFO - google.com - 209.85.233.102
+[2021-10-28 14:18:23,918] - INFO - googlecc.com - 192.185.69.61
+[2021-10-28 14:18:26,007] - INFO - googlecc.com - 192.185.69.61
+[2021-10-28 14:18:27,354] - INFO - googlecc.com - 192.185.69.61
+[2021-10-28 14:18:32,754] - INFO - google.com - 209.85.233.102
+[2021-10-28 14:18:52,996] - INFO - youtube.com - 173.194.220.190
+[2021-10-28 14:30:38,224] - INFO - ulearn.me - 46.17.203.154
+[2021-10-28 14:32:26,324] - INFO - anytask.org - 104.248.42.65
+[2021-10-28 14:36:13,326] - INFO - anytask.org - None
+[2021-10-28 14:36:18,417] - INFO - anytask.org - None
+[2021-10-28 14:36:31,876] - INFO - anytask.org - 104.248.42.65
+[2021-10-28 14:39:25,954] - INFO - insma.urfu.ru - 93.88.177.154

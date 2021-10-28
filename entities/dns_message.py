@@ -44,7 +44,7 @@ class DnsMessage:
         message_question = Question(qdcount, ancount, nscount, arcount,
                                     ".".join(
                                         map(lambda p: binascii.unhexlify(
-                                            p).decode('iso8859-1'),
+                                            p).decode('utf-8'),
                                             question_parts)),
                                     int(message[
                                         question_type_start:
@@ -66,12 +66,10 @@ class DnsMessage:
                 message[start + name_len + 4:start + name_len + 8], 16)
             ttl = int(
                 message[start + name_len + 8:start + name_len + 16], 16)
-            length = int(
-                message[start + name_len + 16:start + name_len + 20],
-                16)
+            length = int(message[start + name_len + 16: start + name_len + 20], 16)
             address = message[start + name_len + 20:
                               start + name_len + 20 + length * 2]
-            start = start + 24 + length * 2
+            start = start + name_len + 20 + length * 2
             if atype == 1:
                 decoded_address = str(IPv4Address(int(address, 16)))
             elif atype == 2:
@@ -119,7 +117,7 @@ def get_type_id(str_type):
 
 def get_decompressed_ns_address(dns_compressed_address: str, message: str):
     return ".".join(
-        map(lambda p: binascii.unhexlify(p).decode('iso8859-1'),
+        map(lambda p: binascii.unhexlify(p).decode('utf-8'),
             get_address_partition_from_decompressed_address(
                 decompress_message(dns_compressed_address, message), 0, [])))
 
@@ -148,8 +146,8 @@ def decompress_message(msg_substring, msg):
 
 
 def decompress_four_bytes(four_bytes: str, message: str) -> str:
-    if not four_bytes:
-        return ""
+    if len(four_bytes) != 4:
+        return four_bytes
     start = int(four_bytes[-3:], 16) * 2
     end = start
     for i in range(1, (len(message) - start) // 2 + 1):
