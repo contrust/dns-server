@@ -13,7 +13,7 @@ def parse_arguments():
         else f'python3 -m {__spec__.name.partition(".")[0]}'
     )
     parser.add_argument('-d', '--domain',
-                        metavar='hostname',
+                        metavar='domain',
                         required=True,
                         help='domain to get public ip')
     parser.add_argument('-s', '--server',

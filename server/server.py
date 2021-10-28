@@ -35,7 +35,7 @@ class Server:
             server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             server.bind((self.config.hostname, self.config.port))
             server.listen()
-            print(f'Server launched with '
+            print(f'Server launched on '
                   f'{self.config.hostname}:{self.config.port}')
             with concurrent.futures.ThreadPoolExecutor(
                     max_workers=self.config.max_threads) as executor:
@@ -109,7 +109,7 @@ def get_dns_request(domain: str, udp: bool, is_ip6: bool):
             if query.atype == type_int and query.aname == domain:
                 result = query
                 break
-            elif query.atype == 2:
+            elif query.atype == 2 and query.aname != "":
                 ns_url = query.rddata
                 break
         if not result and ns_url:
