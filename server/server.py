@@ -113,6 +113,8 @@ def get_dns_request(domain: str, udp: bool, is_ip6: bool):
                 return get_dns_request(query.rddata, udp, is_ip6)
             elif query.atype == 2 and query.aname != "":
                 ns_url = query.rddata
+            elif query.aname == ns_url and query.atype == 1:
+                result = query
                 break
         if not result and ns_url:
             response = send_dns_message(message, ns_url, 53, udp)

@@ -86,8 +86,6 @@ class DnsMessage:
             queries.append(query)
         dns_message = DnsMessage(message_transaction_id, message_flags,
                           message_question, queries)
-        for query in queries:
-            print(query.__dict__)
         return dns_message
 
 
