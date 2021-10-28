@@ -44,7 +44,7 @@ class DnsMessage:
         message_question = Question(qdcount, ancount, nscount, arcount,
                                     ".".join(
                                         map(lambda p: binascii.unhexlify(
-                                            p).decode('utf-8'),
+                                            p).decode('iso8859-1'),
                                             question_parts)),
                                     int(message[
                                         question_type_start:
@@ -72,7 +72,7 @@ class DnsMessage:
             start = start + name_len + 20 + length * 2
             if atype == 1:
                 decoded_address = str(IPv4Address(int(address, 16)))
-            elif atype == 2:
+            elif atype in {2, 5}:
                 decoded_address = get_decompressed_ns_address(address,
                                                               message)
             elif atype == 28:
@@ -86,6 +86,8 @@ class DnsMessage:
             queries.append(query)
         dns_message = DnsMessage(message_transaction_id, message_flags,
                           message_question, queries)
+        for query in queries:
+            print(query.__dict__)
         return dns_message
 
 
@@ -117,7 +119,7 @@ def get_type_id(str_type):
 
 def get_decompressed_ns_address(dns_compressed_address: str, message: str):
     return ".".join(
-        map(lambda p: binascii.unhexlify(p).decode('utf-8'),
+        map(lambda p: binascii.unhexlify(p).decode('iso8859-1'),
             get_address_partition_from_decompressed_address(
                 decompress_message(dns_compressed_address, message), 0, [])))
 
@@ -146,7 +148,7 @@ def decompress_message(msg_substring, msg):
 
 
 def decompress_four_bytes(four_bytes: str, message: str) -> str:
-    if len(four_bytes) != 4:
+    if len(four_bytes) < 4:
         return four_bytes
     start = int(four_bytes[-3:], 16) * 2
     end = start

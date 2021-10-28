@@ -2,6 +2,6 @@
     "hostname": "localhost",
     "port": 2021,
     "max_threads": 5,
-    "cache_size": 10,
+    "cache_size": 3,
     "log_file": "log.txt"
 }

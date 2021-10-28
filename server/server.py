@@ -72,7 +72,7 @@ class Server:
 
 
 def send_dns_message(message, address, port, udp):
-    message = message.replace(" ", "").replace("\n", "")
+    message = message.replace(" ", "").replace("\n", "").strip()
     bytes_message = binascii.unhexlify(message)
     server_address = (address, port)
 
@@ -109,6 +109,8 @@ def get_dns_request(domain: str, udp: bool, is_ip6: bool):
             if query.atype == type_int and query.aname == domain:
                 result = query
                 break
+            elif query.atype == 5 and query.aname == domain:
+                return get_dns_request(query.rddata, udp, is_ip6)
             elif query.atype == 2 and query.aname != "":
                 ns_url = query.rddata
                 break
