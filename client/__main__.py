@@ -24,11 +24,10 @@ def parse_arguments():
                         metavar='port',
                         required=False,
                         help='port of dns server, 2021 by default')
-    parser.add_argument('-u', '--udp',
+    parser.add_argument('-t', '--tcp',
                         required=False,
                         action='store_true',
-                        help='make server create udp requests to '
-                             'root dns servers, tcp by default')
+                        help='use tcp protocol, udp by default')
     parser.add_argument('-ip6',
                         required=False,
                         action='store_true',
@@ -37,14 +36,11 @@ def parse_arguments():
 
 
 def main():
-    """
-    Process parsed console arguments and run server.
-    """
     args_dict = vars(parse_arguments())
     domain = args_dict['domain']
     dns_server = args_dict['server'] if args_dict['server'] else 'localhost'
     port = int(args_dict['port']) if args_dict['port'] else 2021
-    udp = True if args_dict['udp'] else False
+    udp = True if args_dict['tcp'] else False
     is_ip6 = True if args_dict['ip6'] else False
     server_response = get_dns_server_response(domain, dns_server, port, udp,
                                               is_ip6)

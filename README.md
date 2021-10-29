@@ -18,7 +18,7 @@ Then, you can send request to the server via client.
 * Example of getting ip6 address of google.com via udp protocol
 
 ```sh
-python3 -m client -d google.com -u -ip6
+python3 -m client -d google.com -t -ip6
 ```
 ## Server
 
@@ -39,7 +39,7 @@ python3 -m client -d google.com -u -ip6
 | --- | --- |
 | -s hostname | Dns server hostname, localhost by default |
 | -p port | Port of dns server, 2021 by default |
-| -u |  Use udp protocol, tcp by default |
+| -t |  Use tcp protocol, udp by default |
 | -ip6 |  Get ip6 address, ip4 by default |
 
 ## Author

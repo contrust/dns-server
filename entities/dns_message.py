@@ -11,19 +11,28 @@ from entities.question import Question
 class DnsMessage:
     def __init__(self, transaction_id: int,
                  flags: Flags,
-                 question: Question,
-                 queries: list[Query]):
+                 questions: list[Question],
+                 answers: list[Query],
+                 authorities: list[Query],
+                 add_records: list[Query]):
         self.transaction_id = transaction_id
         self.flags = flags
-        self.question = question
-        self.queries = queries
+        self.questions = questions
+        self.answers = answers
+        self.authorities = authorities
+        self.add_records = add_records
 
     def __str__(self):
-        message = ""
-        message += "{:04x}".format(self.transaction_id)
-        message += str(self.flags)
-        message += str(self.question)
-        return message
+        result = ""
+        result += "{:04x}".format(self.transaction_id)
+        result += str(self.flags)
+        result += "{:04x}".format(len(self.questions))
+        result += "{:04x}".format(len(self.answers))
+        result += "{:04x}".format(len(self.authorities))
+        result += "{:04x}".format(len(self.add_records))
+        for question in self.questions:
+            result += str(question)
+        return result
 
     @staticmethod
     def parse(message: str):
@@ -33,109 +42,72 @@ class DnsMessage:
         ancount = int(message[12:16], 16)
         nscount = int(message[16:20], 16)
         arcount = int(message[20:24], 16)
-        question_start = 24
-        question_parts = get_address_partition_from_decompressed_address(
-            message, question_start, [])
-
-        question_type_start = question_start + (
-            len("".join(question_parts))) + (len(question_parts) * 2) + 2
-        question_class_start = question_type_start + 4
-
-        message_question = Question(qdcount, ancount, nscount, arcount,
-                                    ".".join(
-                                        map(lambda p: binascii.unhexlify(
-                                            p).decode('iso8859-1'),
-                                            question_parts)),
-                                    int(message[
-                                        question_type_start:
-                                        question_class_start],
-                                        16),
-                                    int(message[
-                                        question_class_start:
-                                        question_class_start + 4],
-                                        16))
-        start = question_class_start + 4
-        queries = []
-        while start < len(message):
-            name_len = 4 if message[start] == "c" else message[start:].find("00") + 2
-            aname = get_decompressed_ns_address(
-                message[start: start + name_len], message)
-            atype = int(message[start + name_len:start + name_len + 4],
-                        16)
-            aclass = int(
-                message[start + name_len + 4:start + name_len + 8], 16)
-            ttl = int(
-                message[start + name_len + 8:start + name_len + 16], 16)
-            length = int(message[start + name_len + 16: start + name_len + 20], 16)
+        questions, answers, authorities, add_records = [], [], [], []
+        start = 24
+        for _ in range(qdcount):
+            question_parts = get_name_partition(message, start, [])
+            type_start = start + (
+                len("".join(question_parts))) + (len(question_parts) * 2) + 2
+            question = Question(".".join(
+                map(lambda p: binascii.unhexlify(p).decode('iso8859-1'),
+                    question_parts)),
+                int(message[type_start: type_start + 4], 16),
+                int(message[type_start + 4: type_start + 8], 16))
+            questions.append(question)
+            start = type_start + 8
+        for i in range(sum([ancount, nscount, arcount])):
+            if start >= len(message):
+                break
+            name_len = (4 if message[start] == "c"
+                        else message[start:].find("00") + 2)
+            name = decompress_name(message[start: start + name_len], message)
+            tp = int(message[start + name_len: start + name_len + 4], 16)
+            cls = int(message[start + name_len + 4: start + name_len + 8], 16)
+            ttl = int(message[start + name_len + 8: start + name_len + 16], 16)
+            length = int(message[start + name_len + 16: start + name_len + 20],
+                         16)
             address = message[start + name_len + 20:
                               start + name_len + 20 + length * 2]
             start = start + name_len + 20 + length * 2
-            if atype == 1:
+            if tp == 1:
                 decoded_address = str(IPv4Address(int(address, 16)))
-            elif atype in {2, 5}:
-                decoded_address = get_decompressed_ns_address(address,
-                                                              message)
-            elif atype == 28:
+            elif tp in {2, 5}:
+                decoded_address = decompress_name(address, message)
+            elif tp == 28:
                 decoded_address = str(IPv6Address(int(address, 16)))
             else:
                 continue
-            query = Query(qdcount, ancount,
-                          nscount, arcount,
-                          aname, atype, aclass, ttl,
-                          decoded_address)
-            queries.append(query)
+            query = Query(name, tp, cls, ttl, decoded_address)
+            if 0 <= i < ancount:
+                answers.append(query)
+            if ancount <= i < ancount + nscount:
+                authorities.append(query)
+            else:
+                add_records.append(query)
         dns_message = DnsMessage(message_transaction_id, message_flags,
-                          message_question, queries)
+                                 questions, answers, authorities, add_records)
         return dns_message
 
 
-def get_type_id(str_type):
-    types = [
-        "ERROR",
-        "A",
-        "NS",
-        "MD",
-        "MF",
-        "CNAME",
-        "SOA",
-        "MB",
-        "MG",
-        "MR",
-        "NULL",
-        "WKS",
-        "PTS",
-        "HINFO",
-        "MINFO",
-        "MX",
-        "TXT"
-    ]
-    return (types.index(str_type) if isinstance(str_type, str) else
-            "A" if str_type == 1 else
-            "NS" if str_type == 2 else
-            "AAAA" if str_type == 28 else "Unknown")
-
-
-def get_decompressed_ns_address(dns_compressed_address: str, message: str):
+def decompress_name(name: str, message: str):
     return ".".join(
         map(lambda p: binascii.unhexlify(p).decode('iso8859-1'),
-            get_address_partition_from_decompressed_address(
-                decompress_message(dns_compressed_address, message), 0, [])))
+            get_name_partition(decompress_message(name, message), 0, [])))
 
 
-def get_address_partition_from_decompressed_address(decompressed_address,
-                                                    start, parts):
+def get_name_partition(name, start, parts):
     part_start = start + 2
-    len_octet = decompressed_address[start: part_start]
+    len_octet = name[start: part_start]
     if not len_octet:
         return parts
     part_end = part_start + (int(len_octet, 16) * 2)
-    parts.append(decompressed_address[part_start:part_end])
-    if (decompressed_address[part_end: part_end + 2] == "00" or
-            part_end > len(decompressed_address)):
+    parts.append(name[part_start:part_end])
+    if (name[part_end: part_end + 2] == "00" or
+            part_end > len(name)):
         return parts
     else:
-        return get_address_partition_from_decompressed_address(
-            decompressed_address, part_end, parts)
+        return get_name_partition(
+            name, part_end, parts)
 
 
 def decompress_message(msg_substring, msg):
@@ -146,7 +118,7 @@ def decompress_message(msg_substring, msg):
 
 
 def decompress_four_bytes(four_bytes: str, message: str) -> str:
-    if len(four_bytes) < 4:
+    if len(four_bytes) != 4:
         return four_bytes
     start = int(four_bytes[-3:], 16) * 2
     end = start

@@ -46,7 +46,7 @@ class Server:
     def handle_client(self, client: socket) -> None:
         try:
             request = client.recv(4096)
-            domain, is_ip6, udp = parse_request(request)
+            domain, is_ip6, tcp = parse_request(request)
             cache_part = f'{domain} {is_ip6}'
             if cached := self.cache.get_item(cache_part):
                 client.sendall(cached.encode('utf-8'))
@@ -57,9 +57,9 @@ class Server:
                 client.sendall(response.encode('utf-8'))
                 self.cache.add_item(cache_part, response, 300)
             else:
-                query = get_dns_request(domain, udp, is_ip6)
+                query = get_dns_request(domain, tcp, is_ip6)
                 if query:
-                    response = query.rddata
+                    response = query.data
                     client.sendall(response.encode('utf-8'))
                     self.cache.add_item(cache_part, response, query.ttl)
                 else:
@@ -71,18 +71,18 @@ class Server:
             client.close()
 
 
-def send_dns_message(message, address, port, udp):
+def send_dns_message(message, address, port, tcp):
     message = message.replace(" ", "").replace("\n", "").strip()
     bytes_message = binascii.unhexlify(message)
     server_address = (address, port)
-
-    if not udp:
+    if tcp:
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.connect(server_address)
     else:
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    sock.settimeout(1)
     try:
-        if not udp:
+        if tcp:
             sock.sendall(bytes_message)
             data = sock.recv(4096)
         else:
@@ -90,34 +90,33 @@ def send_dns_message(message, address, port, udp):
             data, _ = sock.recvfrom(4096)
     finally:
         sock.close()
-    return binascii.hexlify(data).decode("iso8859-1")[4 if not udp else 0:]
+    return binascii.hexlify(data).decode("iso8859-1")[4 if tcp else 0:]
 
 
-def get_dns_request(domain: str, udp: bool, is_ip6: bool):
+def get_dns_request(domain: str, tcp: bool, is_ip6: bool):
     flags = Flags(0, 0, 0, 0, 1, 0, 0, 0)
     type_int = 28 if is_ip6 else 1
-    q = Question(1, 0, 0, 0, domain, type_int, 1)
-    message = str(DnsMessage(43690, flags, q, []))
-    if not udp:
+    q = Question(domain, type_int, 1)
+    message = str(DnsMessage(43690, flags, [q], [], [], []))
+    if tcp:
         message = "{:04x}".format(len(message) // 2) + message
-    response = send_dns_message(message, "a.root-servers.net", 53, udp)
-    result = None
+    response = send_dns_message(message, "a.root-servers.net", 53, tcp)
     while response:
         decoded_message = DnsMessage.parse(response)
-        ns_url = None
-        for query in decoded_message.queries:
-            if query.atype == type_int and query.aname == domain:
-                result = query
+        for answer in decoded_message.answers:
+            if answer.tp == type_int and answer.name == domain:
+                return answer
+            elif answer.tp == 5 and answer.name == domain:
+                return get_dns_request(answer.data, tcp, is_ip6)
+        for authority in decoded_message.authorities:
+            if authority.tp == 2 and authority.name != "":
+                address = authority.data
+                for record in decoded_message.add_records:
+                    if record.name == address and record.tp == 1:
+                        address = record.data
+                        break
+                response = send_dns_message(message, address, 53, tcp)
                 break
-            elif query.atype == 5 and query.aname == domain:
-                return get_dns_request(query.rddata, udp, is_ip6)
-            elif query.atype == 2 and query.aname != "":
-                ns_url = query.rddata
-            elif query.aname == ns_url and query.atype == 1:
-                result = query
-                break
-        if not result and ns_url:
-            response = send_dns_message(message, ns_url, 53, udp)
         else:
             break
-    return result
+    return None
