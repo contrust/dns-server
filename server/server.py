@@ -77,10 +77,14 @@ def send_dns_message(message, address, port, tcp):
     server_address = (address, port)
     if tcp:
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.connect(server_address)
+        try:
+            sock.connect(server_address)
+        except (socket.socket, socket.gaierror):
+            return ''
     else:
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.settimeout(1)
+    data = b''
     try:
         if tcp:
             sock.sendall(bytes_message)

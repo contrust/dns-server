@@ -45,34 +45,30 @@ class DnsMessage:
         questions, answers, authorities, add_records = [], [], [], []
         start = 24
         for _ in range(qdcount):
-            question_parts = get_name_partition(message, start, [])
-            type_start = start + (
-                len("".join(question_parts))) + (len(question_parts) * 2) + 2
-            question = Question(".".join(
-                map(lambda p: binascii.unhexlify(p).decode('iso8859-1'),
-                    question_parts)),
-                int(message[type_start: type_start + 4], 16),
-                int(message[type_start + 4: type_start + 8], 16))
+            name_end = find_name_end_index(start, message)
+            question = Question(
+                get_joined_by_dots_name(message[start: name_end], message),
+                int(message[name_end: name_end + 4], 16),
+                int(message[name_end + 4: name_end + 8], 16))
             questions.append(question)
-            start = type_start + 8
+            start = name_end + 8
         for i in range(sum([ancount, nscount, arcount])):
             if start >= len(message):
                 break
-            name_len = (4 if message[start] == "c"
-                        else message[start:].find("00") + 2)
-            name = decompress_name(message[start: start + name_len], message)
-            tp = int(message[start + name_len: start + name_len + 4], 16)
-            cls = int(message[start + name_len + 4: start + name_len + 8], 16)
-            ttl = int(message[start + name_len + 8: start + name_len + 16], 16)
-            length = int(message[start + name_len + 16: start + name_len + 20],
+            end = find_name_end_index(start, message)
+            name = get_joined_by_dots_name(message[start: end], message)
+            tp = int(message[end: end + 4], 16)
+            cls = int(message[end + 4: end + 8], 16)
+            ttl = int(message[end + 8: end + 16], 16)
+            length = int(message[end + 16: end + 20],
                          16)
-            address = message[start + name_len + 20:
-                              start + name_len + 20 + length * 2]
-            start = start + name_len + 20 + length * 2
+            address = message[end + 20:
+                              end + 20 + length * 2]
+            start = end + 20 + length * 2
             if tp == 1:
                 decoded_address = str(IPv4Address(int(address, 16)))
             elif tp in {2, 5}:
-                decoded_address = decompress_name(address, message)
+                decoded_address = get_joined_by_dots_name(address, message)
             elif tp == 28:
                 decoded_address = str(IPv6Address(int(address, 16)))
             else:
@@ -89,25 +85,22 @@ class DnsMessage:
         return dns_message
 
 
-def decompress_name(name: str, message: str):
+def get_joined_by_dots_name(name: str, message: str):
     return ".".join(
         map(lambda p: binascii.unhexlify(p).decode('iso8859-1'),
             get_name_partition(decompress_message(name, message), 0, [])))
 
 
 def get_name_partition(name, start, parts):
-    part_start = start + 2
-    len_octet = name[start: part_start]
+    len_octet = name[start: start + 2]
     if not len_octet:
         return parts
-    part_end = part_start + (int(len_octet, 16) * 2)
-    parts.append(name[part_start:part_end])
-    if (name[part_end: part_end + 2] == "00" or
-            part_end > len(name)):
+    part_end = start + 2 + int(len_octet, 16) * 2
+    parts.append(name[start + 2: part_end])
+    if part_end > len(name) or name[part_end: part_end + 2] == "00":
         return parts
     else:
-        return get_name_partition(
-            name, part_end, parts)
+        return get_name_partition(name, part_end, parts)
 
 
 def decompress_message(msg_substring, msg):
@@ -121,16 +114,21 @@ def decompress_four_bytes(four_bytes: str, message: str) -> str:
     if len(four_bytes) != 4:
         return four_bytes
     start = int(four_bytes[-3:], 16) * 2
-    end = start
-    for i in range(1, (len(message) - start) // 2 + 1):
-        if message[start + i * 2: start + i * 2 + 2] == "00":
-            end = start + i * 2
-            break
-        if message[start + i * 2] == "c":
-            end = start + i * 2 + 4
-            break
+    end = find_name_end_index(start, message)
     result = message[start: end]
     if result[-4] == "c":
         result = (message[start: end - 4] +
                   decompress_four_bytes(message[end - 4: end], message))
     return result
+
+
+def find_name_end_index(start, message):
+    end = start
+    for i in range(0, (len(message) - start) // 2):
+        if message[start + i * 2: start + i * 2 + 2] == "00":
+            end = start + i * 2 + 2
+            break
+        if message[start + i * 2] == "c":
+            end = start + i * 2 + 4
+            break
+    return end
