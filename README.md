@@ -33,9 +33,8 @@ python3 -m client -d google.com -t -ip6
 | --- | --- |
 | python3 -m client -h  | Show help message  |
 | python3 -m client -d domain | Get public ip of given domain |
-* Optional arguments
 
-| Argument | Description |
+| Optional argument | Description |
 | --- | --- |
 | -s hostname | Dns server hostname, localhost by default |
 | -p port | Port of dns server, 2021 by default |
