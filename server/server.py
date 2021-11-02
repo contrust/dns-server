@@ -117,7 +117,7 @@ class Server:
                 request.flags.qr = 1
                 res = request
             self.cache.add_item(cache_part, res,
-                                res.answers[0].ttl if len(res.answers)
+                                res.answers[-1].ttl if len(res.answers)
                                 else 300)
             return binascii.unhexlify(str(res))
 
