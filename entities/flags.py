@@ -17,18 +17,19 @@ class Flags:
     @staticmethod
     def parse(line: str):
         params = "{:b}".format(int(line, 16)).zfill(16)
-        return Flags(int(params[0:1], 16), int(params[1:5], 16),
-                     int(params[5:6], 16),
-                     int(params[6:7], 16),
-                     int(params[7:8], 16), int(params[8:9], 16),
-                     int(params[9:12], 16),
-                     int(params[12:16], 16))
+        return Flags(int(params[0:1], 2), int(params[1:5], 2),
+                     int(params[5:6], 2),
+                     int(params[6:7], 2),
+                     int(params[7:8], 2), int(params[8:9], 2),
+                     int(params[9:10], 2),
+                     int(params[12:16], 2))
 
     def __str__(self):
         result = str(self.qr)
         result += str(self.opcode).zfill(4)
         result += str(self.aa) + str(self.tc) + str(self.rd) + str(self.ra)
-        result += str(self.z).zfill(3)
+        result += str(self.z)
+        result += "00"
         result += str(self.reply_code).zfill(4)
         result = "{:04x}".format(int(result, 2))
         return result

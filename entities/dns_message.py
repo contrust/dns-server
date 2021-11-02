@@ -32,6 +32,8 @@ class DnsMessage:
         result += "{:04x}".format(len(self.add_records))
         for question in self.questions:
             result += str(question)
+        for query in self.answers + self.authorities + self.add_records:
+            result += str(query)
         return result
 
     @staticmethod
@@ -67,7 +69,7 @@ class DnsMessage:
             start = end + 20 + length * 2
             if tp == 1:
                 decoded_address = str(IPv4Address(int(address, 16)))
-            elif tp in {2, 5}:
+            elif tp in {2, 5, 12}:
                 decoded_address = get_joined_by_dots_name(address, message)
             elif tp == 28:
                 decoded_address = str(IPv6Address(int(address, 16)))

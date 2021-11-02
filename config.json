@@ -1,7 +1,7 @@
 {
-    "hostname": "localhost",
-    "port": 2021,
+    "hostname": "127.0.0.2",
+    "port": 53,
     "max_threads": 5,
-    "cache_size": 3,
+    "cache_size": 10,
     "log_file": "log.txt"
 }
