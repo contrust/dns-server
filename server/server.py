@@ -168,6 +168,9 @@ def get_dns_response(request: DnsMessage, tcp: bool) -> Optional[DnsMessage]:
             elif answer.tp == 5 and answer.name == domain:
                 request.questions[0].name = answer.data
                 result = get_dns_response(request, tcp)
+                if not result:
+                    request.flags.qr = 1
+                    result = request
                 result.questions[0].name = domain
                 result.answers = [answer] + result.answers
                 return result
