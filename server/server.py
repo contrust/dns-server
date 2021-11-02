@@ -4,6 +4,7 @@ import logging
 import socket
 from functools import reduce
 from multiprocessing import Process
+from threading import Thread
 from typing import Optional
 
 from entities.dns_message import DnsMessage
@@ -35,12 +36,18 @@ class Server:
 
     def run(self) -> None:
         try:
-            p1 = Process(target=self.run_with_udp)
-            p2 = Process(target=self.run_with_tcp)
-            p1.start()
-            p2.start()
+            p1 = Thread(target=self.run_with_udp)
+            p2 = Thread(target=self.run_with_tcp)
+            p1.setDaemon(True)
+            p2.setDaemon(True)
             print(f'Server launched on '
                   f'{self.config.hostname}:{self.config.port}')
+            p1.start()
+            p2.start()
+            p1.join()
+            p2.join()
+        except KeyboardInterrupt:
+            pass
         except Exception as e:
             logging.error(e)
 
@@ -146,10 +153,10 @@ def get_dns_string_response_from_socket(hexed_message: str,
     return get_hexed_string(data)
 
 
-def get_dns_response(message: DnsMessage, tcp: bool) -> Optional[DnsMessage]:
-    domain = message.questions[0].name
-    question_type = message.questions[0].tp
-    data = str(message)
+def get_dns_response(request: DnsMessage, tcp: bool) -> Optional[DnsMessage]:
+    domain = request.questions[0].name
+    question_type = request.questions[0].tp
+    data = str(request)
     string_response = get_dns_string_response_from_socket(data,
                                                           "a.root-servers.net",
                                                           53, tcp)
@@ -159,8 +166,8 @@ def get_dns_response(message: DnsMessage, tcp: bool) -> Optional[DnsMessage]:
             if answer.tp == question_type and answer.name == domain:
                 return response
             elif answer.tp == 5 and answer.name == domain:
-                message.questions[0].name = answer.data
-                result = get_dns_response(message, tcp)
+                request.questions[0].name = answer.data
+                result = get_dns_response(request, tcp)
                 result.questions[0].name = domain
                 result.answers = [answer] + result.answers
                 return result

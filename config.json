@@ -1,5 +1,5 @@
 {
-    "hostname": "127.0.0.2",
+    "hostname": "127.0.0.3",
     "port": 53,
     "max_threads": 5,
     "cache_size": 10,

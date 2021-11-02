@@ -14,8 +14,6 @@ python3 -m server -g config.json
 python3 -m server -r config.json
 ```
 
-## Server
-
 | Command | Description |
 | --- | --- |
 | python3 -m server -h | Show help message |
