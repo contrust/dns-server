@@ -9,12 +9,14 @@ from entities.question import Question
 
 @dataclass
 class DnsMessage:
-    def __init__(self, transaction_id: int,
+    def __init__(self, is_tcp: bool,
+                 transaction_id: int,
                  flags: Flags,
                  questions: list[Question],
                  answers: list[Query],
                  authorities: list[Query],
                  add_records: list[Query]):
+        self.is_tcp = is_tcp
         self.transaction_id = transaction_id
         self.flags = flags
         self.questions = questions
@@ -34,10 +36,14 @@ class DnsMessage:
             result += str(question)
         for query in self.answers + self.authorities + self.add_records:
             result += str(query)
+        if self.is_tcp:
+            result = "{:04x}".format(len(result) // 2) + result
         return result
 
     @staticmethod
-    def parse(message: str):
+    def parse(message: str, is_tcp: bool):
+        if is_tcp:
+            message = message[4:]
         message_transaction_id = int(message[0:4], 16)
         message_flags = Flags.parse(message[4:8])
         qdcount = int(message[8:12], 16)
@@ -82,7 +88,7 @@ class DnsMessage:
                 authorities.append(query)
             else:
                 add_records.append(query)
-        dns_message = DnsMessage(message_transaction_id, message_flags,
+        dns_message = DnsMessage(is_tcp, message_transaction_id, message_flags,
                                  questions, answers, authorities, add_records)
         return dns_message
 

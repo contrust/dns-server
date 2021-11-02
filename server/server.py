@@ -2,16 +2,12 @@ import binascii
 import concurrent.futures
 import logging
 import socket
-import sys
-import traceback
 from functools import reduce
 from multiprocessing import Process
-from pprint import pprint
+from typing import Optional
 
 from entities.dns_message import DnsMessage
-from entities.flags import Flags
 from entities.query import Query
-from entities.question import Question
 from server.config import Config
 from server.timed_lru_cache import TimedLruCache
 
@@ -25,11 +21,6 @@ def get_multiply_response(address: str) -> int:
         return numbers[0] % 256
     else:
         return reduce(lambda x, y: x * y, numbers) % 256
-
-
-def parse_request(request: bytes):
-    params = list(map(lambda x: x.decode('utf-8'), request.split()))
-    return [params[0], bool(int(params[1])), bool(int(params[2]))]
 
 
 class Server:
@@ -76,67 +67,60 @@ class Server:
                     executor.submit(self.handle_tcp_client, client=client)
 
     def handle_udp_client(self, server: socket.socket,
-                          data: bytes, address: tuple):
+                          data: bytes, address: tuple) -> None:
         try:
-            response = self.get_dns_response(data, False)
+            response = self.get_bytes_dns_response(data, False)
             server.sendto(response, address)
         except Exception as e:
-            traceback.print_exc()
             logging.error(e)
 
-    def handle_tcp_client(self, client: socket.socket):
+    def handle_tcp_client(self, client: socket.socket) -> None:
         try:
             data = client.recv(8192)
-            response = self.get_dns_response(data, True)
+            response = self.get_bytes_dns_response(data, True)
             client.sendall(response)
         except Exception as e:
             logging.error(e)
         finally:
             client.close()
 
-    def get_dns_response(self, data: bytes, tcp: bool) -> bytes:
-        message = binascii.hexlify(data).decode("iso8859-1")
-        message = message[4:] if tcp else message
-        m = DnsMessage.parse(message)
-        cache_part = tuple([m.questions[0].name, m.questions[0].tp, tcp])
+    def get_bytes_dns_response(self, bytes_message: bytes, is_tcp: bool) \
+            -> bytes:
+        message = get_hexed_string(bytes_message)
+        request = DnsMessage.parse(message, is_tcp)
+        cache_part = tuple([request.questions[0].name,
+                            request.questions[0].tp, is_tcp])
         if cached := self.cache.get_item(cache_part):
-            cached.transaction_id = m.transaction_id
-            result = str(cached)
-            if tcp:
-                result = "{:04x}".format(len(result) // 2) + result
-            result = binascii.unhexlify(result)
-            return result
-        elif '.multiply.' in m.questions[0].name:
-            multiply_response = get_multiply_response(m.questions[0].name)
+            cached.transaction_id = request.transaction_id
+            return binascii.unhexlify(str(cached))
+        elif '.multiply.' in request.questions[0].name:
+            multiply_response = get_multiply_response(request.questions[0].name)
             address = f'127.0.0.{multiply_response}'
-            m.flags.qr = 1
-            m.answers.append(Query(m.questions[0].name, 1, 1, 300, address))
-            self.cache.add_item(cache_part, m, 300)
-            result = str(m)
-            if tcp:
-                result = "{:04x}".format(len(result) // 2) + result
-            result = binascii.unhexlify(result)
-            return result
+            request.flags.qr = 1
+            request.answers.append(Query(request.questions[0].name,
+                                         1, 1, 300, address))
+            self.cache.add_item(cache_part, request, 300)
+            return binascii.unhexlify(str(request))
         else:
-            res = get_dns_request(m, tcp)
+            res = get_dns_response(request, is_tcp)
             if res:
                 res.add_records = []
                 res.authorities = []
             else:
-                m.flags.qr = 1
-                res = m
-            result = str(res)
-            if tcp:
-                result = "{:04x}".format(len(result) // 2) + result
-            result = binascii.unhexlify(result)
+                request.flags.qr = 1
+                res = request
             self.cache.add_item(cache_part, res,
                                 res.answers[0].ttl if len(res.answers)
                                 else 300)
-            return result
+            return binascii.unhexlify(str(res))
 
-def send_dns_message(msg, address, port, tcp):
-    msg = msg.replace(" ", "").replace("\n", "").strip()
-    bytes_message = binascii.unhexlify(msg)
+
+def get_dns_string_response_from_socket(hexed_message: str,
+                                        address: str,
+                                        port: int,
+                                        tcp: bool) -> str:
+    hexed_message = hexed_message.replace(" ", "").replace("\n", "").strip()
+    bytes_message = binascii.unhexlify(hexed_message)
     server_address = (address, port)
     sock = (socket.socket(socket.AF_INET, socket.SOCK_STREAM) if tcp
             else socket.socket(socket.AF_INET, socket.SOCK_DGRAM))
@@ -153,44 +137,49 @@ def send_dns_message(msg, address, port, tcp):
             sock.sendall(bytes_message)
             data = sock.recv(4096)
         else:
-            sock.sendto(binascii.unhexlify(msg), server_address)
+            sock.sendto(binascii.unhexlify(hexed_message), server_address)
             data, _ = sock.recvfrom(4096)
     except socket.error as e:
         logging.error(e)
     finally:
         sock.close()
-    return binascii.hexlify(data).decode("iso8859-1")[4 if tcp else 0:]
+    return get_hexed_string(data)
 
 
-def get_dns_request(message: DnsMessage, tcp: bool):
+def get_dns_response(message: DnsMessage, tcp: bool) -> Optional[DnsMessage]:
     domain = message.questions[0].name
-    type_int = message.questions[0].tp
+    question_type = message.questions[0].tp
     data = str(message)
-    if tcp:
-        data = "{:04x}".format(len(data) // 2) + data
-    response = send_dns_message(data, "a.root-servers.net", 53, tcp)
-    while response:
-        decoded_message = DnsMessage.parse(response)
-        for answer in decoded_message.answers:
-            if answer.tp == type_int and answer.name == domain:
-                return decoded_message
+    string_response = get_dns_string_response_from_socket(data,
+                                                          "a.root-servers.net",
+                                                          53, tcp)
+    while string_response:
+        response = DnsMessage.parse(string_response, tcp)
+        for answer in response.answers:
+            if answer.tp == question_type and answer.name == domain:
+                return response
             elif answer.tp == 5 and answer.name == domain:
                 message.questions[0].name = answer.data
-                result = get_dns_request(message, tcp)
+                result = get_dns_response(message, tcp)
                 result.questions[0].name = domain
                 result.answers = [answer] + result.answers
                 return result
-        for authority in decoded_message.authorities:
+        for authority in response.authorities:
             if authority.tp == 2 and authority.name != "":
                 address = authority.data
-                for record in decoded_message.add_records:
+                for record in response.add_records:
                     if record.name == address and record.tp == 1:
                         address = record.data
                         break
-                response = send_dns_message(data, address, 53, tcp)
-                if not response:
+                string_response = get_dns_string_response_from_socket(
+                    data, address, 53, tcp)
+                if not string_response:
                     continue
                 break
         else:
             break
     return None
+
+
+def get_hexed_string(data: bytes) -> str:
+    return binascii.hexlify(data).decode("iso8859-1")
