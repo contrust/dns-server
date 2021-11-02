@@ -5,8 +5,8 @@ from dataclasses import dataclass
 @dataclass
 class Config:
     def __init__(self):
-        self.hostname = 'localhost'
-        self.port = 2021
+        self.hostname = '127.0.0.2'
+        self.port = 53
         self.max_threads = 5
         self.cache_size = 10
         self.log_file = 'log.txt'
