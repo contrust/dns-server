@@ -36,7 +36,7 @@ class Query:
             result += (binascii.hexlify(data.encode('iso8859-1')).
                        decode('iso8859-1'))
         else:
-            for part in data.split():
+            for part in data.split('.'):
                 result += "{:02x}".format(len(part))
                 result += (binascii.hexlify(part.encode('iso8859-1')).
                            decode('iso8859-1'))
