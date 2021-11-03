@@ -3,7 +3,6 @@ import concurrent.futures
 import logging
 import socket
 from functools import reduce
-from multiprocessing import Process
 from threading import Thread
 from typing import Optional
 
@@ -109,17 +108,17 @@ class Server:
             self.cache.add_item(cache_part, request, 300)
             return binascii.unhexlify(str(request))
         else:
-            res = get_dns_response(request, is_tcp)
-            if res:
-                res.add_records = []
-                res.authorities = []
+            response = get_dns_response(request, is_tcp)
+            if response:
+                response.add_records = []
+                response.authorities = []
             else:
                 request.flags.qr = 1
-                res = request
-            self.cache.add_item(cache_part, res,
-                                res.answers[-1].ttl if len(res.answers)
-                                else 300)
-            return binascii.unhexlify(str(res))
+                response = request
+            self.cache.add_item(cache_part, response,
+                                response.answers[-1].ttl
+                                if len(response.answers) else 300)
+            return binascii.unhexlify(str(response))
 
 
 def get_dns_string_response_from_socket(hexed_message: str,
