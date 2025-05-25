@@ -2,38 +2,37 @@ import binascii
 import concurrent.futures
 import logging
 import socket
+import time
 from functools import reduce
 from threading import Thread
 from typing import Optional
+from dataclasses import astuple
 
 from entities.dns_message import DnsMessage
 from entities.query import Query
+from entities.question import Question
+from entities.flags import Flags
 from server.config import Config
 from server.timed_lru_cache import TimedLruCache
-
-
-def get_multiply_response(address: str) -> int:
-    numbers = [int(x) for x in address[: address.find('.multiply.')].split('.')
-               if x.isnumeric()]
-    if len(numbers) == 0:
-        return 0
-    if len(numbers) == 1:
-        return numbers[0] % 256
-    else:
-        return reduce(lambda x, y: x * y, numbers) % 256
 
 
 class Server:
     def __init__(self, config: Config):
         self.config = config
-        self.cache = TimedLruCache(config.cache_size)
+        self.cache = TimedLruCache.try_load_from_file(config.cache_file,
+                                                      config.cache_size)
         self.server = None
+        self.running = False
         logging.basicConfig(
             filename=self.config.log_file,
             level=logging.DEBUG,
             format='[%(asctime)s] - %(levelname)s - %(message)s')
 
+    def shutdown(self):
+        self.cache.save_to_file(self.config.cache_file)
+
     def run(self) -> None:
+        self.running = True
         try:
             p1 = Thread(target=self.run_with_udp)
             p2 = Thread(target=self.run_with_tcp)
@@ -49,6 +48,8 @@ class Server:
             pass
         except Exception as e:
             logging.error(e)
+        finally:
+            self.running = False
 
     def run_with_udp(self):
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as server:
@@ -56,7 +57,7 @@ class Server:
             server.bind((self.config.hostname, self.config.port))
             with concurrent.futures.ThreadPoolExecutor(
                     max_workers=self.config.max_threads) as executor:
-                while True:
+                while self.running:
                     data, address = server.recvfrom(8192)
                     executor.submit(self.handle_udp_client,
                                     server=server, data=data, address=address)
@@ -68,7 +69,7 @@ class Server:
             server.listen()
             with concurrent.futures.ThreadPoolExecutor(
                     max_workers=self.config.max_threads) as executor:
-                while True:
+                while self.running:
                     client, address = server.accept()
                     executor.submit(self.handle_tcp_client, client=client)
 
@@ -90,36 +91,55 @@ class Server:
         finally:
             client.close()
 
-    def get_bytes_dns_response(self, bytes_message: bytes, is_tcp: bool) \
-            -> bytes:
+    def get_bytes_dns_response(self, bytes_message: bytes, is_tcp: bool) -> bytes:
         message = get_hexed_string(bytes_message)
         request = DnsMessage.parse(message, is_tcp)
-        cache_part = tuple([request.questions[0].name,
-                            request.questions[0].tp, is_tcp])
-        if cached := self.cache.get_item(cache_part):
-            cached.transaction_id = request.transaction_id
-            return binascii.unhexlify(str(cached))
-        elif '.multiply.' in request.questions[0].name:
-            multiply_response = get_multiply_response(request.questions[0].name)
-            address = f'127.0.0.{multiply_response}'
-            request.flags.qr = 1
-            request.answers.append(Query(request.questions[0].name,
-                                         1, 1, 300, address))
-            self.cache.add_item(cache_part, request, 300)
-            return binascii.unhexlify(str(request))
-        else:
-            response = get_dns_response(request, is_tcp)
-            if response:
-                response.add_records = []
-                response.authorities = []
+        
+        responses = []
+        questions = request.questions
+        for question in questions:
+            if response := self.get_cached_dns_response(question):
+                responses.append(response)
             else:
-                request.flags.qr = 1
-                response = request
-            self.cache.add_item(cache_part, response,
-                                response.answers[-1].ttl
-                                if len(response.answers) else 300)
-            return binascii.unhexlify(str(response))
+                request.questions = [question]
+                response = get_dns_response(request,
+                                            self.config.proxy_hostname,
+                                            self.config.proxy_port,
+                                            is_tcp)
+                if not response:
+                    request.flags.qr = 1
+                    request.flags.reply_code = 2
+                    return binascii.unhexlify(str(request))
+                self.cache_dns_response(question, response)
+                responses.append(response)
+        answers = set()
+        authorities = set()
+        add_records = set()
+        for response in responses:
+            answers |= set(response.answers)
+            authorities |= set(response.authorities)
+            add_records |= set(response.add_records)
+        response = DnsMessage(is_tcp, request.transaction_id, 
+                            Flags(1, 0, 0, 0, 0, 0, 0, 0),
+                            request.questions,
+                            list(answers),
+                            list(authorities),
+                            list(add_records))
+        return binascii.unhexlify(str(response))
 
+    def get_cached_dns_response(self, question: Question):
+        item = question.to_tuple()
+        return self.cache.get_item(item)
+
+    def cache_dns_response(self, question: Question, response: DnsMessage):
+        if response is None:
+            return
+        queries = response.get_all_queries()
+        if len(queries) == 0:
+            return
+        min_ttl = min(query.ttl for query in queries)
+        item = question.to_tuple()
+        self.cache.add_item(item, response, min_ttl)
 
 def get_dns_string_response_from_socket(hexed_message: str,
                                         address: str,
@@ -152,27 +172,18 @@ def get_dns_string_response_from_socket(hexed_message: str,
     return get_hexed_string(data)
 
 
-def get_dns_response(request: DnsMessage, tcp: bool) -> Optional[DnsMessage]:
+def get_dns_response(request, hostname, port, tcp: bool) -> Optional[DnsMessage]:
     domain = request.questions[0].name
     question_type = request.questions[0].tp
     data = str(request)
     string_response = get_dns_string_response_from_socket(data,
-                                                          "a.root-servers.net",
-                                                          53, tcp)
+                                                          hostname,
+                                                          port, tcp)
     while string_response:
         response = DnsMessage.parse(string_response, tcp)
         for answer in response.answers:
             if answer.tp == question_type and answer.name == domain:
                 return response
-            elif answer.tp == 5 and answer.name == domain:
-                request.questions[0].name = answer.data
-                result = get_dns_response(request, tcp)
-                if not result:
-                    request.flags.qr = 1
-                    result = request
-                result.questions[0].name = domain
-                result.answers = [answer] + result.answers
-                return result
         for authority in response.authorities:
             if authority.tp == 2 and authority.name != "":
                 address = authority.data
@@ -186,7 +197,7 @@ def get_dns_response(request: DnsMessage, tcp: bool) -> Optional[DnsMessage]:
                     continue
                 break
         else:
-            break
+            return response
     return None
 
 

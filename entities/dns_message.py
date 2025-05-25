@@ -75,7 +75,7 @@ class DnsMessage:
             start = end + 20 + length * 2
             if tp == 1:
                 decoded_address = str(IPv4Address(int(address, 16)))
-            elif tp in {2, 5, 12}:
+            elif tp in {2, 12}:
                 decoded_address = get_joined_by_dots_name(address, message)
             elif tp == 28:
                 decoded_address = str(IPv6Address(int(address, 16)))
@@ -91,6 +91,9 @@ class DnsMessage:
         dns_message = DnsMessage(is_tcp, message_transaction_id, message_flags,
                                  questions, answers, authorities, add_records)
         return dns_message
+
+    def get_all_queries(self):
+        return self.answers + self.authorities + self.add_records
 
 
 def get_joined_by_dots_name(name: str, message: str):

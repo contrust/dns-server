@@ -12,6 +12,17 @@ class Query:
         self.cls = cls
         self.ttl = ttl
         self.data = data
+    
+
+    def __hash__(self):
+        return hash((self.name, self.tp, self.cls, self.data))
+
+    def __eq__(self, other):
+        if not isinstance(other, Query):
+            return False
+        return (self.name, self.tp, self.cls, self.data) == (
+            other.name, other.tp, other.cls, other.data
+        )
 
     def __str__(self):
         result = ""

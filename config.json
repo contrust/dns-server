@@ -3,5 +3,8 @@
     "port": 53,
     "max_threads": 5,
     "cache_size": 10,
-    "log_file": "log.txt"
+    "log_file": "log.txt",
+    "cache_file": "cache.pkl",
+    "proxy_hostname": "a.root-servers.net",
+    "proxy_port": 53
 }

@@ -9,6 +9,18 @@ class Question:
         self.tp = tp
         self.cls = cls
 
+    def to_tuple(self):
+        return (self.name, self.tp, self.cls)
+
+    def __hash__(self):
+        return hash((self.name, self.tp, self.cls))
+
+    def __eq__(self, other):
+        if not isinstance(other, Question):
+            return False
+        return (self.name, self.tp, self.cls) == (
+            other.name, other.tp, other.cls)
+
     def __str__(self):
         result = ""
         for part in self.name.split("."):

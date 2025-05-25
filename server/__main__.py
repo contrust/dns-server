@@ -19,7 +19,6 @@ def parse_arguments():
                         help="run server with given config")
     return parser.parse_args()
 
-
 def main():
     config = Config()
     args_dict = vars(parse_arguments())
@@ -28,16 +27,20 @@ def main():
         sys.exit()
     if args_dict['run']:
         config.load(args_dict['run'])
+    
+    server = None
     try:
         server = Server(config)
         server.run()
     except KeyboardInterrupt:
-        pass
+        print("Shutting down server...")
     except Exception as e:
         print(e)
+        logging.error(e)
     finally:
-        sys.exit(1)
+        if server:
+            server.shutdown()
+        sys.exit(0 if isinstance(server, Server) else 1)
 
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

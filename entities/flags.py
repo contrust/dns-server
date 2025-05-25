@@ -26,10 +26,10 @@ class Flags:
 
     def __str__(self):
         result = str(self.qr)
-        result += str(self.opcode).zfill(4)
+        result += bin(self.opcode)[2:].zfill(4)
         result += str(self.aa) + str(self.tc) + str(self.rd) + str(self.ra)
         result += str(self.z)
         result += "00"
-        result += str(self.reply_code).zfill(4)
+        result += bin(self.reply_code)[2:].zfill(4)
         result = "{:04x}".format(int(result, 2))
         return result
