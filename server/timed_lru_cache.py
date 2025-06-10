@@ -17,7 +17,7 @@ class TimedLruCacheEntry:
     @classmethod
     def from_dict(cls, data):
         entry = cls(data['value'], data['expiration_time'] - time())
-        entry.expiration_time = data['expiration_time']  # Keep original expiration
+        entry.expiration_time = data['expiration_time']
         return entry
 
 class TimedLruCache:
