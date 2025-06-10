@@ -5,7 +5,7 @@ import socket
 import time
 from functools import reduce
 from threading import Thread
-from typing import Optional
+from typing import Optional, Union, List
 from dataclasses import astuple
 
 from entities.dns_message import DnsMessage
@@ -18,38 +18,53 @@ from server.timed_lru_cache import TimedLruCache
 
 class Server:
     def __init__(self, config: Config):
-        self.config = config
-        self.cache = TimedLruCache.try_load_from_file(config.cache_file,
-                                                      config.cache_size)
-        self.server = None
-        self.running = False
-        logging.basicConfig(
-            filename=self.config.log_file,
-            level=logging.DEBUG,
-            format='[%(asctime)s] - %(levelname)s - %(message)s')
+        self.config: Config = config
+        try:
+            self.cache = TimedLruCache.try_load_from_file(config.cache_file,
+                                                          config.cache_size)
+        except Exception as e:
+            logging.error(f'Failed to load cache from file {config.cache_file}: {e}')
+            self.cache = TimedLruCache(config.cache_size)
+        self.server: Union[socket.socket, None] = None
+        self.running: bool = False
 
     def shutdown(self):
-        self.cache.save_to_file(self.config.cache_file)
+        logging.info('Shutting down server')
+        try:
+            logging.info(f'Saving cache to file {self.config.cache_file}')
+            self.cache.save_to_file(self.config.cache_file)
+        except Exception as e:
+            logging.error(f'Failed to save cache to file {self.config.cache_file}: {e}')
+        finally:
+            self.running = False
+            if self.server:
+                logging.info(f'Closing server {self.server.getsockname()}')
+                self.server.close()
 
     def run(self) -> None:
         self.running = True
         try:
             p1 = Thread(target=self.run_with_udp)
             p2 = Thread(target=self.run_with_tcp)
+            p3 = Thread(target=self.update_cache_loop)
             p1.setDaemon(True)
             p2.setDaemon(True)
-            print(f'Server launched on '
+            p3.setDaemon(True)
+            logging.info(f'Server launched on '
                   f'{self.config.hostname}:{self.config.port}')
             p1.start()
             p2.start()
+            p3.start()
             p1.join()
             p2.join()
+            p3.join()
         except KeyboardInterrupt:
-            pass
+            logging.info('Server stopped by keyboard interrupt')
         except Exception as e:
-            logging.error(e)
+            logging.error(f'Server crashed: {e}')
         finally:
             self.running = False
+            self.shutdown()
 
     def run_with_udp(self):
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as server:
@@ -71,23 +86,35 @@ class Server:
                     max_workers=self.config.max_threads) as executor:
                 while self.running:
                     client, address = server.accept()
-                    executor.submit(self.handle_tcp_client, client=client)
+                    executor.submit(self.handle_tcp_client, client=client, address=address)
+
+    def update_cache_loop(self):
+        while self.running:
+            self.cache.update()
+            time.sleep(1)
 
     def handle_udp_client(self, server: socket.socket,
                           data: bytes, address: tuple) -> None:
+        ip, port = address
+        logging.info(f'Handling UDP client {ip}:{port}')
         try:
             response = self.get_bytes_dns_response(data, False)
-            server.sendto(response, address)
+            if response:
+                server.sendto(response, address)
+            logging.info(f'Successfully handled UDP client {ip}:{port}')
         except Exception as e:
-            logging.error(e)
+            logging.error(f'Failed to handle UDP client {ip}:{port}: {e}')
 
-    def handle_tcp_client(self, client: socket.socket) -> None:
+    def handle_tcp_client(self, client: socket.socket, address: tuple) -> None:
+        ip, port = address
+        logging.info(f'Handling TCP client {ip}:{port}')
         try:
             data = client.recv(8192)
             response = self.get_bytes_dns_response(data, True)
             client.sendall(response)
+            logging.info(f'Successfully handled TCP client {ip}:{port}')
         except Exception as e:
-            logging.error(e)
+            logging.error(f'Failed to handle TCP client {ip}:{port}: {e}')
         finally:
             client.close()
 
@@ -95,12 +122,14 @@ class Server:
         message = get_hexed_string(bytes_message)
         request = DnsMessage.parse(message, is_tcp)
         
-        responses = []
-        questions = request.questions
+        responses: List[DnsMessage] = []
+        questions: List[Question] = request.questions
         for question in questions:
             if response := self.get_cached_dns_response(question):
+                logging.debug(f'Using cached response for {question.name}')
                 responses.append(response)
             else:
+                logging.debug(f'Getting response for {question.name}')
                 request.questions = [question]
                 response = get_dns_response(request,
                                             self.config.proxy_hostname,
@@ -110,6 +139,7 @@ class Server:
                     request.flags.qr = 1
                     request.flags.reply_code = 2
                     return binascii.unhexlify(str(request))
+                logging.debug(f'Caching response for {question.name}')
                 self.cache_dns_response(question, response)
                 responses.append(response)
         answers = set()
@@ -127,13 +157,11 @@ class Server:
                             list(add_records))
         return binascii.unhexlify(str(response))
 
-    def get_cached_dns_response(self, question: Question):
+    def get_cached_dns_response(self, question: Question) -> Optional[DnsMessage]:
         item = question.to_tuple()
         return self.cache.get_item(item)
 
-    def cache_dns_response(self, question: Question, response: DnsMessage):
-        if response is None:
-            return
+    def cache_dns_response(self, question: Question, response: DnsMessage) -> None:
         queries = response.get_all_queries()
         if len(queries) == 0:
             return
@@ -155,7 +183,7 @@ def get_dns_string_response_from_socket(hexed_message: str,
         try:
             sock.connect(server_address)
         except socket.error as e:
-            logging.error(e)
+            logging.error(f'Failed to connect to {address}:{port}: {e}')
             return ''
     data = b''
     try:
@@ -166,21 +194,33 @@ def get_dns_string_response_from_socket(hexed_message: str,
             sock.sendto(binascii.unhexlify(hexed_message), server_address)
             data, _ = sock.recvfrom(4096)
     except socket.error as e:
-        logging.error(e)
+        logging.error(f'Failed to send/receive data to/from {address}:{port}: {e}')
     finally:
         sock.close()
     return get_hexed_string(data)
 
 
 def get_dns_response(request, hostname, port, tcp: bool) -> Optional[DnsMessage]:
+    if request is None:
+        return None
+    if len(request.questions) == 0:
+        return None
     domain = request.questions[0].name
     question_type = request.questions[0].tp
     data = str(request)
-    string_response = get_dns_string_response_from_socket(data,
-                                                          hostname,
-                                                          port, tcp)
+    try:
+        string_response = get_dns_string_response_from_socket(data,
+                                                              hostname,
+                                                              port, tcp)
+    except Exception as e:
+        logging.error(f'Failed to get DNS response from {hostname}:{port}: {e}')
+        return None
     while string_response:
-        response = DnsMessage.parse(string_response, tcp)
+        try:
+            response = DnsMessage.parse(string_response, tcp)
+        except Exception as e:
+            logging.error(f'Failed to parse DNS response: {e}')
+            return None
         for answer in response.answers:
             if answer.tp == question_type and answer.name == domain:
                 return response
@@ -191,8 +231,12 @@ def get_dns_response(request, hostname, port, tcp: bool) -> Optional[DnsMessage]
                     if record.name == address and record.tp == 1:
                         address = record.data
                         break
-                string_response = get_dns_string_response_from_socket(
-                    data, address, 53, tcp)
+                try:
+                    string_response = get_dns_string_response_from_socket(
+                        data, address, 53, tcp)
+                except Exception as e:
+                    logging.error(f'Failed to get DNS response from {address}:53: {e}')
+                    continue
                 if not string_response:
                     continue
                 break
