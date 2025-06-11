@@ -1,33 +1,156 @@
-# DNS-server
-Simple DNS-server which iteratively gets domain's public ip.
+# DNS Сервер
 
-## Usage
-* Get config for running the server
+DNS сервер на Python, который предоставляет итеративное разрешение DNS-запросов с возможностью кэширования. Сервер поддерживает как TCP, так и UDP протоколы и может обрабатывать множество клиентских подключений одновременно.
 
-```sh
+## Возможности
+
+- **Поддержка нескольких протоколов**
+  - Обработка TCP и UDP запросов
+  - Поддержка IPv4 (A-записи) и IPv6 (AAAA-записи)
+  - Потокобезопасная реализация
+
+- **Система кэширования**
+  - LRU (Least Recently Used) кэш с поддержкой TTL
+  - Постоянное хранение кэша
+  - Автоматическая очистка устаревших записей
+  - Настраиваемый размер кэша
+
+- **Специальные возможности**
+  - Обработка специальных доменов с ".multiply."
+    - Возвращает IP 127.0.0.X, где X - произведение чисел до "multiply" по модулю 256
+  - Настраиваемый прокси-сервер для вышестоящего DNS-разрешения
+  - Подробная система логирования
+
+- **Потокобезопасность**
+  - Многопоточная обработка запросов
+  - Потокобезопасные операции с кэшем
+  - Настраиваемый размер пула потоков
+
+## Установка
+
+1. Клонируйте репозиторий:
+```bash
+git clone https://github.com/yourusername/dns-server.git
+cd dns-server
+```
+
+2. Установите зависимости:
+```bash
+make install
+```
+
+## Использование
+
+### Быстрый старт с Makefile
+
+Проект включает Makefile для упрощения основных операций:
+
+```bash
+# Генерация конфигурационного файла
+make config
+
+# Запуск сервера
+make run
+
+# Запуск сервера с подробным логированием
+make run-verbose
+
+# Запуск тестов
+make test
+
+# Очистка кэш-файлов и логов
+make clean
+
+# Показать справку по командам
+make help
+```
+
+### Ручная настройка
+
+Сервер можно настроить с помощью JSON-файла конфигурации. Вы можете сгенерировать файл конфигурации по умолчанию с помощью:
+
+```bash
 sudo python3 -m server -g config.json
 ```
 
-* Run server with config
+Параметры конфигурации по умолчанию:
+- `hostname`: '127.0.0.2'
+- `port`: 53
+- `max_threads`: 5
+- `cache_size`: 100
+- `log_file`: 'log.txt'
+- `cache_file`: 'cache.pkl'
+- `proxy_hostname`: "a.root-servers.net"
+- `proxy_port`: 53
 
-```sh
+### Запуск сервера
+
+1. Сгенерируйте конфигурацию (если еще не сделано):
+```bash
+sudo python3 -m server -g config.json
+```
+
+2. Запустите сервер:
+```bash
 sudo python3 -m server -r config.json
 ```
 
-| Command | Description |
-| --- | --- |
-| python3 -m server -h | Show help message |
-| python3 -m server -g config_path | Get config file in given path |
-| python3 -m server -r config_path | Run server with given config |
+Дополнительные опции:
+- `-h, --help`: Показать справочное сообщение
+- `-v, --verbose`: Запустить сервер в режиме подробного логирования
 
-## Features
+## Тестирование
 
-- Handling multiple clients on server with multithreading
-- Caching responses based on ttl
-- TCP and UDP requests handling
-- Several types of records are available: A and AAAA
-- If the request contains ".multiply.", then server responds with IP 127.0.0.X, where
-       X - product of numbers up to "multiply" modulo 256
-## Author
+Проект включает модульные тесты для системы кэширования. Для запуска тестов:
 
-**Artyom Borisov**
+```bash
+make test
+```
+
+или
+
+```bash
+python -m unittest tests/test_timed_lru_cache.py -v
+```
+
+Тестовое покрытие включает:
+- Базовые операции с кэшем (добавление, получение)
+- Истечение срока действия TTL
+- Вытеснение по LRU
+- Сохранение в файл
+- Потокобезопасность
+- Граничные случаи
+
+## Структура проекта
+
+```
+dns-server/
+├── server/
+│   ├── __main__.py      # Точка входа сервера
+│   ├── server.py        # Основная реализация сервера
+│   ├── config.py        # Управление конфигурацией
+│   └── timed_lru_cache.py  # Система кэширования
+├── entities/
+│   ├── dns_message.py   # Обработка DNS-сообщений
+│   ├── flags.py         # DNS-флаги
+│   ├── query.py         # Обработка DNS-запросов
+│   └── question.py      # Обработка DNS-вопросов
+├── tests/
+│   └── test_timed_lru_cache.py  # Модульные тесты
+├── Makefile            # Скрипты автоматизации
+└── README.md
+```
+
+## Требования
+
+- Python 3.x
+- Права root/администратора (для привязки к порту 53)
+- Make (для использования Makefile)
+
+## Автор
+
+**Артём Борисов**
+
+## Лицензия
+
+Этот проект распространяется под лицензией MIT - подробности в файле LICENSE.
