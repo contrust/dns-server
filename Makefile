@@ -10,10 +10,10 @@ config:
 	sudo $(PYTHON) -m server -g $(CONFIG)
 
 run:
-	sudo $(PYTHON) -m server -r $(CONFIG)
+	sudo $(PYTHON) -m server -c $(CONFIG)
 
 run-verbose:
-	sudo $(PYTHON) -m server -r $(CONFIG) -v
+	sudo $(PYTHON) -m server -c $(CONFIG) -v
 
 test:
 	$(PYTHON) -m unittest tests/test_timed_lru_cache.py -v
