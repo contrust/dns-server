@@ -65,6 +65,72 @@ make clean
 make help
 ```
 
+### Примеры использования
+
+#### Прямой DNS-запрос (A-запись)
+
+```bash
+# Первый запрос (без кэша)
+$ dig @127.0.0.2 google.com
+
+; <<>> DiG 9.20.9 <<>> @127.0.0.2 google.com
+; (1 server found)
+;; global options: +cmd
+;; Got answer:
+;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 54488
+;; flags: qr; QUERY: 1, ANSWER: 6, AUTHORITY: 0, ADDITIONAL: 6
+
+;; QUESTION SECTION:
+;google.com.                    IN      A
+
+;; ANSWER SECTION:
+google.com.             300     IN      A       64.233.162.139
+google.com.             300     IN      A       64.233.162.100
+google.com.             300     IN      A       64.233.162.101
+google.com.             300     IN      A       64.233.162.102
+google.com.             300     IN      A       64.233.162.138
+google.com.             300     IN      A       64.233.162.113
+
+;; Query time: 229 msec
+
+# Повторный запрос (из кэша)
+$ dig @127.0.0.2 google.com
+
+;; Query time: 1 msec  # Заметно быстрее благодаря кэшированию
+```
+
+#### Обратный DNS-запрос (PTR-запись)
+
+```bash
+# Первый запрос (без кэша)
+$ dig @127.0.0.2 -x 91.201.52.139
+
+; <<>> DiG 9.20.9 <<>> @127.0.0.2 -x 91.201.52.139
+; (1 server found)
+;; global options: +cmd
+;; Got answer:
+;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 4872
+;; flags: qr; QUERY: 1, ANSWER: 1, AUTHORITY: 3, ADDITIONAL: 4
+
+;; QUESTION SECTION:
+;139.52.201.91.in-addr.arpa.    IN      PTR
+
+;; ANSWER SECTION:
+139.52.201.91.in-addr.arpa. 3600 IN     PTR     be24.netangels.ru.
+
+;; AUTHORITY SECTION:
+52.201.91.in-addr.arpa. 14400   IN      NS      ns3.netangels.ru.
+52.201.91.in-addr.arpa. 14400   IN      NS      ns1.netangels.ru.
+52.201.91.in-addr.arpa. 14400   IN      NS      ns2.netangels.ru.
+
+;; Query time: 534 msec
+
+# Повторный запрос (из кэша)
+$ dig @127.0.0.2 -x 91.201.52.139
+
+;; Query time: 2 msec  # Заметно быстрее благодаря кэшированию
+```
+
 ### Ручная настройка
 
 Сервер можно настроить с помощью JSON-файла конфигурации. Вы можете сгенерировать файл конфигурации по умолчанию с помощью:
@@ -92,7 +158,7 @@ sudo python3 -m server -g config.json
 
 2. Запустите сервер:
 ```bash
-sudo python3 -m server -r config.json
+sudo python3 -m server -c config.json
 ```
 
 Дополнительные опции:
